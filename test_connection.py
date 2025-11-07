@@ -1,24 +1,13 @@
-#!/usr/bin/env python3
-"""Test script to verify database connection."""
+import psycopg2
+from psycopg2 import OperationalError
 
-from dotenv import load_dotenv
-load_dotenv()
+# Replace with your actual DATABASE_URL from Railway
+DATABASE_URL = "postgresql://postgres:faxWXpYkZtpFzFssEFRvzVUKacQGFxaC@switchback.proxy.rlwy.net:46241/railway"
 
-from app import create_app
-from models import db
-
-def test_connection():
-    """Test the database connection."""
-    try:
-        app = create_app()
-        with app.app_context():
-            # Try to connect and execute a simple query
-            db.engine.execute(db.text('SELECT 1'))
-            print("✅ Database connection successful!")
-            return True
-    except Exception as e:
-        print(f"❌ Database connection failed: {e}")
-        return False
-
-if __name__ == "__main__":
-    test_connection()
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    print("✅ Connection successful!")
+    conn.close()
+except OperationalError as e:
+    print("❌ Connection failed:")
+    print(e)

@@ -13,7 +13,15 @@ class Config:
     PROFILE_PICTURE_UPLOAD_FOLDER = str(BASE_DIR / "static" / "uploads" / "profile_pictures")
 
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    database_type = os.environ.get("DATABASE", "sl")  # Default to SQLite
+
+    if database_type == "pg":
+        SQLALCHEMY_DATABASE_URI = os.environ.get("POSTGRES_URL")
+    elif database_type == "ms":
+        SQLALCHEMY_DATABASE_URI = os.environ.get("MYSQL_URL")
+    else:
+        SQLALCHEMY_DATABASE_URI = os.environ.get("SQLITE_URL", f"sqlite:///{BASE_DIR / 'instance' / 'app.db'}")
+
 
     # Email configuration (for development)
     # In production, use a real email server and set these as environment variables.

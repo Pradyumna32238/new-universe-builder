@@ -46,6 +46,7 @@ from urllib.parse import urlparse
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
+from flask_migrate import Migrate
 
 cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 from models import db, User, Universe, Character, UniverseCollaboratorRequest, Issue, Notification, NotificationSettings
@@ -67,7 +68,7 @@ def generate_username_suggestion(username: str) -> str:
     if not sanitized:
         sanitized = "user"
     sanitized = sanitized[:USERNAME_MAX_LENGTH]
-    
+
     # Ensure the sanitized username is at least 5 characters long
     while len(sanitized) < 5:
         sanitized += random.choice(string.ascii_lowercase + string.digits)
@@ -177,8 +178,12 @@ def create_app(config_name: str = None) -> Flask:
     db.init_app(app)
     cache.init_app(app)
 
+    migrate = Migrate(app, db)
+
     with app.app_context():
-        db.create_all()
+        if not inspect(db.engine).has_table('user'):
+            db.create_all()
+
         admin_username = os.environ.get("ADMIN_USERNAME", "admin")
         admin_password = os.environ.get("ADMIN_PASSWORD", "admin")
         admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com")
@@ -202,19 +207,13 @@ def create_app(config_name: str = None) -> Flask:
     def load_user(user_id: str):
         return User.query.get(int(user_id))
 
-
-        
     with app.app_context():
         # Register Blueprints, if any
         # from .main import main as main_blueprint
         # app.register_blueprint(main_blueprint)
 
-        db.create_all()
-
         register_routes(app)
         register_error_handlers(app)
-
-
 
     return app
 
