@@ -377,6 +377,18 @@ def register_routes(app: Flask) -> None:
         logout_user()
         return redirect(url_for("index"))
 
+    import smtplib, os
+
+    @app.route("/smtp-test")
+    def smtp_test():
+        try:
+            server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+            server.starttls()
+            server.login(os.getenv("MAIL_USERNAME"), os.getenv("MAIL_PASSWORD"))
+            server.quit()
+            return "✅ SMTP connection successful!"
+        except Exception as e:
+            return f"❌ SMTP failed: {e}"
 
     @app.route('/notifications/clear', methods=['POST'])
     @login_required
