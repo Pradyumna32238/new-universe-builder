@@ -1,0 +1,16 @@
+{% for universe in universes %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <a href="{{ url_for('universe_detail', universe_id=universe.id) }}">
+                <img src="{{ url_for('static', filename='images/universe_placeholder.jpg') }}" class="card-img-top" alt="{{ universe.title }}">
+            </a>
+            <div class="card-body">
+                <h5 class="card-title"><a href="{{ url_for('universe_detail', universe_id=universe.id) }}">{{ universe.title }}</a></h5>
+                <p class="card-text">{{ universe.description|truncate(100) }}</p>
+            </div>
+            <div class="card-footer">
+                <small class="text-muted">Created by: {{ universe.owner.username }}</small>
+            </div>
+        </div>
+    </div>
+{% endfor %}

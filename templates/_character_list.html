@@ -1,0 +1,11 @@
+{% for character in characters %}
+    <div class="character-card">
+        <a href="{{ url_for('main.character_detail', character_id=character.id) }}">
+            <img src="{{ character.image_url or url_for('static', filename='images/character_placeholder.png') }}" alt="{{ character.name }}">
+            <div class="character-card-name">{{ character.name }}</div>
+        </a>
+    </div>
+
+{% else %}
+    <p>No characters found.</p>
+{% endfor %}

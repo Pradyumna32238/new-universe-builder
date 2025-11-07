@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Universe - Universe Builder{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Edit Universe</h2>
+    <p>Update the details of your universe.</p>
+  </section>
+
+  {% if current_user.is_authenticated and not current_user.is_admin and universe.owner_id == current_user.id %}
+    <section class="form-section">
+      <form method="post" class="form">
+        <div class="form-group">
+          <label for="title">Universe Title</label>
+          <input type="text" id="title" name="title" value="{{ universe.title }}" required>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="5">{{ universe.description }}</textarea>
+        </div>
+
+        <button type="submit" class="button">Save Changes</button>
+      </form>
+    </section>
+  {% else %}
+    <section class="guard-message">
+      <p class="notice">You do not have permission to edit this universe.</p>
+    </section>
+  {% endif %}
+{% endblock %}

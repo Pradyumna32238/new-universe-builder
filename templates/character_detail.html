@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="character-detail-container">
+    <div class="character-detail-card">
+        <img src="{{ character.image_url or url_for('static', filename='images/character_placeholder.png') }}" alt="{{ character.name }}" class="character-detail-image">
+        <div class="character-detail-info">
+            <h1>{{ character.name }}</h1>
+            <p><strong>Description:</strong> {{ character.description }}</p>
+            <p><strong>Abilities:</strong> {{ character.abilities }}</p>
+            <p><strong>Quote:</strong> "{{ character.quote }}"</p>
+            <p><strong>Status:</strong> {{ character.status }}</p>
+            <p><strong>Universe:</strong> <a href="{{ url_for('universe', universe_id=character.universe_id) }}">{{ character.universe.title }}</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

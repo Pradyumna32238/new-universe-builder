@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}My App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+</head>
+<body>
+    <div class="toast-container" data-toast-container></div>
+    <header class="navbar">
+        <div class="container">
+            <div class="brand">Universe Builder</div>
+            <nav>
+                <div class="nav-right-group">
+                    <div class="nav-links">
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('index') }}">Universes</a>
+                            {% if not current_user.is_admin %}
+                                <a href="{{ url_for('add_universe') }}">Add Universe</a>
+                            {% endif %}
+                            {% if current_user.is_admin %}
+                            <a href="{{ url_for('admin') }}">Admin</a>
+                            {% endif %}
+                            <a href="{{ url_for('account_settings') }}">Account</a>
+                            <a href="{{ url_for('logout') }}">Logout</a>
+                        {% else %}
+                            <a href="{{ url_for('index') }}">Universes</a>
+                            <a href="{{ url_for('login') }}">Login</a>
+                            <a href="{{ url_for('register') }}">Register</a>
+                        {% endif %}
+                    </div>
+                    <div class="nav-actions">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('account_settings') }}" class="nav-profile-link">
+                            <img src="{{ url_for('profile_picture') }}" alt="Profile Picture" class="nav-profile-pic">
+                        </a>
+                        <div class="notification-wrapper">
+                            <button class="nav-icon-button" data-notification-toggle>
+                                <span class="sr-only">View notifications</span>
+                                <span class="nav-icon">🔔</span>
+                                <span class="notification-badge" style="display: none;"></span>
+                            </button>
+                            <aside class="notification-panel hidden" data-notification-panel>
+                                <div class="notification-panel__header">
+                                    <h3>Notifications</h3>
+                                    <button class="button secondary small" data-notification-clear>Clear All</button>
+                                </div>
+                                <div class="notification-panel__body" data-notification-list>
+                                </div>
+                            </aside>
+                        </div>
+                    {% endif %}
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+    <main style="flex: 1;">
+        <div class="container">
+        {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Universe Builder</p>
+    </footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            {% for category, message in messages %}
+                showNotification("{{ message }}", "{{ category }}");
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
+    {% endwith %}
+    {% block scripts %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+</body>
+</html>

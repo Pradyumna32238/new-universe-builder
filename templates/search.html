@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results for "{{ query }}"{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="page-header">Search Results for "{{ query }}"</h1>
+
+    {% if not universe_results and not character_results %}
+        <div class="empty-state">
+            <h2>No results found</h2>
+            <p>We couldn't find any universes or characters matching your search.</p>
+        </div>
+    {% else %}
+        {% if universe_results %}
+            <section class="results-section">
+                <h2>Universes</h2>
+                <div class="card-grid">
+                    {% for universe in universe_results %}
+                        <div class="card">
+                            <h3><a href="{{ url_for('universe_detail', universe_id=universe.id) }}">{{ universe.title }}</a></h3>
+                            <p>{{ universe.description|truncate(150) }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if character_results %}
+            <section class="results-section">
+                <h2>Characters</h2>
+                <div class="card-grid">
+                    {% for character in character_results %}
+                        <div class="card">
+                            <h3><a href="{{ url_for('universe_detail', universe_id=character.universe_id) }}">{{ character.name }}</a></h3>
+                            <p>In Universe: <a href="{{ url_for('universe_detail', universe_id=character.universe_id) }}">{{ character.universe.title }}</a></p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Universe Builder{% endblock %}
+
+{% block content %}
+<div class="settings-tabs universe-tabs" role="tablist" aria-label="User settings">
+    <button class="settings-tab is-active" role="tab" onclick="showTab('profile')" id="tab-profile" aria-selected="true" aria-controls="settings-profile">Profile</button>
+    {% if not current_user.is_admin %}
+    <button class="settings-tab" role="tab" onclick="showTab('password')" id="tab-password" aria-selected="false" aria-controls="settings-password">Change Password</button>
+    {% endif %}
+    <button class="settings-tab" role="tab" onclick="showTab('notifications')" id="tab-notifications" aria-selected="false" aria-controls="settings-notifications">Notifications</button>
+    {% if not current_user.is_admin %}
+    <button class="settings-tab" role="tab" onclick="showTab('issues')" id="tab-issues" aria-selected="false" aria-controls="settings-issues">Issues</button>
+    {% endif %}
+</div>
+
+<div class="settings-content">
+    <section id="profile" class="settings-section" style="display:block;">
+      <h2 class="settings-section__title">Public Profile</h2>
+      <p class="settings-section__subtitle">This information will be displayed publicly.</p>
+      
+      <div class="profile-layout">
+        <form method="post" action="{{ url_for('account_settings') }}" class="form" enctype="multipart/form-data">
+          <input type="hidden" name="update_target" value="profile-picture">
+          <div class="form-group profile-picture-section">
+            <label for="profile_picture">Profile Picture</label>
+            <div class="profile-picture-preview">
+              <div class="profile-picture-container">
+                <img src="{{ url_for('profile_picture') }}" alt="Current profile picture" class="profile-picture-large">
+                <div class="profile-picture-overlay">
+                  <span class="camera-icon">&#x1F4F7;</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <div id="profile-picture-modal" class="modal">
+          <div class="modal-content">
+            <span class="close">&times;</span>
+            <img class="modal-image" src="{{ url_for('profile_picture') }}" alt="Current profile picture">
+            <form method="post" action="{{ url_for('account_settings') }}" class="form" enctype="multipart/form-data" id="update-picture-form">
+              <input type="hidden" name="update_target" value="profile-picture">
+              <input type="file" id="profile_picture" name="profile_picture" accept="image/*">
+              <div class="form-actions">
+                <button type="submit" id="update-picture-button" class="button">Update Picture</button>
+                {% if current_user.profile_image_data %}
+                <button type="submit" name="remove_profile_picture" value="true" class="button danger">Remove Picture</button>
+                {% endif %}
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="profile-details-section">
+          <form method="post" action="{{ url_for('account_settings') }}" class="form" enctype="multipart/form-data" id="update-profile-form">
+            <input type="hidden" name="update_target" value="profile-details">
+            <div class="form-group">
+              <label for="username">Username</label>
+              <div class="input-with-icon">
+                <input type="text" id="username" name="username" value="{{ current_user.username }}" readonly>
+                {% if not current_user.is_admin %}
+                <span class="edit-icon" data-target="username">&#x270E;</span>
+                {% endif %}
+              </div>
+              <div id="username-feedback"></div>
+              <small>Your unique username.</small>
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <div class="input-with-icon">
+                <input type="email" id="email" name="email" value="{{ current_user.email }}" readonly>
+                {% if not current_user.is_admin %}
+                <span class="edit-icon" data-target="email">&#x270E;</span>
+                {% endif %}
+              </div>
+              <div id="email-feedback"></div>
+              <button type="button" id="get-otp-button" class="button" style="display: none;">Get OTP</button>
+              <small>Your email address.</small>
+            </div>
+            {% if not current_user.is_admin %}
+            <button type="submit" id="update-profile-button" class="button">Update Profile</button>
+            {% endif %}
+          </form>
+          <div id="otp-group" style="display: none;">
+            <form method="post" action="{{ url_for('verify_email_change') }}" class="form" id="otp-form">
+              <div class="form-group">
+                <label for="otp">Enter OTP from your new email</label>
+                <input type="text" id="otp" name="otp" class="form-control" required>
+              </div>
+              <button type="submit" class="button">Update Email</button>
+            </form>
+          </div>
+          </div>
+        </div>
+
+    </section>
+
+    {% if not current_user.is_admin %}
+    <section id="password" class="settings-section" style="display:none;">
+      <h2 class="settings-section__title">Password</h2>
+      <p class="settings-section__subtitle">Update your password. Ensure it's a strong one.</p>
+
+      <form method="post" action="{{ url_for('account_settings') }}" class="form" id="update-password-form">
+        <input type="hidden" name="update_target" value="password">
+
+        <div class="form-group">
+          <label for="current_password">Current Password</label>
+          <input type="password" id="current_password" name="current_password" required>
+        </div>
+
+        <div class="form-group">
+          <label for="new_password">New Password</label>
+          <input type="password" id="new_password" name="new_password" required>
+        </div>
+        <div class="password-requirements" aria-live="polite">
+          <p class="password-requirements__title">Make sure your password includes:</p>
+          <ul>
+            <li data-rule="length">At least 8 characters</li>
+            <li data-rule="uppercase">An uppercase letter</li>
+            <li data-rule="lowercase">A lowercase letter</li>
+            <li data-rule="number">A number</li>
+            <li data-rule="special">A special character</li>
+          </ul>
+        </div>
+
+        <div class="form-group confirm-password-group">
+          <label for="confirm_password">Confirm New Password</label>
+          <input type="password" id="confirm_password" name="confirm_password" required>
+          <p class="password-match-hint settings-password-match-hint" id="password-match-hint"></p>
+        </div>
+
+        <button type="submit" class="button">Update Password</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <section id="notifications" class="settings-section" style="display:none;">
+      <h2 class="settings-section__title">Notifications</h2>
+      <p class="settings-section__subtitle">Manage your notification preferences.</p>
+      <form method="post" action="{{ url_for('account_settings') }}" class="form">
+        <input type="hidden" name="update_target" value="notifications">
+                <div class="form-group notification-toggle">
+          <label for="email_notifications">Receive email notifications</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="email_notifications" name="email_notifications" {% if not current_user.notification_settings or current_user.notification_settings.email_notifications %}checked{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </form>
+    </section>
+    {% if not current_user.is_admin %}
+    <section id="issues" class="settings-section" style="display:none;">
+      <h2 class="settings-section__title">Report an Issue</h2>
+      <p class="settings-section__subtitle">Having a problem? Let us know.</p>
+      <form method="post" action="{{ url_for('account_settings') }}" class="form">
+        <input type="hidden" name="update_target" value="issue">
+        <div class="form-group">
+          <label for="issue_type">Type</label>
+          <select id="issue_type" name="issue_type" required>
+            <option value="issue">Issue</option>
+            <option value="suggestion">Suggestion</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="issue_title">Title</label>
+          <input type="text" id="issue_title" name="issue_title" required>
+        </div>
+        <div class="form-group">
+          <label for="issue_description">Description</label>
+          <textarea id="issue_description" name="issue_description" rows="5" required></textarea>
+        </div>
+        <button type="submit" class="button">Submit Issue</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/settings.js', v='1.1') }}"></script>
+{% endblock %}

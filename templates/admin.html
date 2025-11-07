@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Admin Dashboard</h1>
+    </div>
+
+    <div class="settings-tabs">
+        <button class="settings-tab {{ 'is-active' if active_tab == 'dashboard' else '' }}" data-tab="dashboard">Dashboard</button>
+        <button class="settings-tab {{ 'is-active' if active_tab == 'users' else '' }}" data-tab="users">Users</button>
+        <button class="settings-tab {{ 'is-active' if active_tab == 'universes' else '' }}" data-tab="universes">Universes</button>
+        <button class="settings-tab {{ 'is-active' if active_tab == 'issues' else '' }}" data-tab="issues">Issues</button>
+    </div>
+
+    <div id="dashboard" class="settings-section {{ 'is-active' if active_tab == 'dashboard' else '' }}">
+        <div class="admin-card-grid">
+            <div class="card">
+                <h3>Total Users</h3>
+                <p>{{ users.total }}</p>
+            </div>
+            <div class="card">
+                <h3>Total Universes</h3>
+                <p>{{ universes.total }}</p>
+            </div>
+            <div class="card">
+                <h3>Total Characters</h3>
+                <p>{{ characters|length }}</p>
+            </div>
+            <div class="card">
+                <h3>Open Issues</h3>
+                <p>{{ issues.total }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="users" class="settings-section {{ 'is-active' if active_tab == 'users' else '' }}">
+        <div class="table-container">
+            <h2>Manage Users</h2>
+            <div class="search-container">
+                <form method="get" action="{{ url_for('admin') }}">
+                    <input type="hidden" name="tab" value="users">
+                    <input type="text" name="search_users" placeholder="Search by ID, username or email" value="{{ request.args.get('search_users', '') }}">
+                    <button type="submit" class="button">Search</button>
+                </form>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users.items %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('admin_delete_user', user_id=user.id) }}" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                <button type="submit" class="button danger small">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="pagination">
+                {% for page_num in users.iter_pages() %}
+                    {% if page_num %}
+                        <a href="{{ url_for('admin', page_users=page_num, tab='users', search_users=request.args.get('search_users', '')) }}" class="button {{ 'is-active' if users.page == page_num else '' }}">{{ page_num }}</a>
+                    {% else %}
+                        <span class="ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div id="universes" class="settings-section {{ 'is-active' if active_tab == 'universes' else '' }}">
+        <div class="table-container">
+            <h2>Manage Universes</h2>
+            <div class="search-container">
+                <form method="get" action="{{ url_for('admin') }}">
+                    <input type="hidden" name="tab" value="universes">
+                    <input type="text" name="search_universes" placeholder="Search by ID or title" value="{{ request.args.get('search_universes', '') }}">
+                    <button type="submit" class="button">Search</button>
+                </form>
+            </div>
+            {% for universe in universes.items %}
+            <div class="card">
+                <div class="universe-header" onclick="toggleDropdown('universe-{{ universe.id }}', this)">
+                    <span class="dropdown-arrow">&#9660;</span>
+                    <h3>{{ universe.title }}</h3>
+                </div>
+                <div id="universe-{{ universe.id }}" style="display: none;" class="universe-details">
+                    <p><strong>Description:</strong> {{ universe.description }}</p>
+                    <p><strong>Owner:</strong> {{ universe.owner.username }}</p>
+                    <h4>Characters:</h4>
+                    <ul>
+                        {% for character in universe.characters %}
+                        <li>
+                            {{ character.name }} - <em>{{ character.description }}</em>
+                            <form method="post" action="{{ url_for('admin_delete_character', character_id=character.id) }}" onsubmit="return confirm('Are you sure you want to delete this character?');" style="display: inline;">
+                                <button type="submit" class="button danger small">Delete</button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li>No characters in this universe.</li>
+                        {% endfor %}
+                    </ul>
+                    <form method="post" action="{{ url_for('admin_delete_universe', universe_id=universe.id) }}" onsubmit="return confirm('Are you sure you want to delete this universe?');" class="mt-4">
+                        <button type="submit" class="button danger small">Delete Universe</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="pagination">
+                {% for page_num in universes.iter_pages() %}
+                    {% if page_num %}
+                        <a href="{{ url_for('admin', page_universes=page_num, tab='universes', search_universes=request.args.get('search_universes', '')) }}" class="button {{ 'is-active' if universes.page == page_num else '' }}">{{ page_num }}</a>
+                    {% else %}
+                        <span class="ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div id="issues" class="settings-section {{ 'is-active' if active_tab == 'issues' else '' }}">
+            <div class="search-container">
+                <form method="GET" action="{{ url_for('admin') }}">
+                    <input type="hidden" name="tab" value="issues">
+                    <input type="text" name="search_issues" placeholder="Search by ID" value="{{ request.args.get('search_issues', '') }}">
+                    <button type="submit" class="button">Search</button>
+                </form>
+            </div>
+            <div class="table-container">
+            <h2>Manage Issues</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>User</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in issues.items %}
+                    <tr>
+                        <td>{{ issue.id }}</td>
+                        <td>{{ issue.title }}</td>
+                        <td>{{ issue.issue_type }}</td>
+                        <td>
+                            <span id="short-desc-{{ issue.id }}">{{ issue.description|truncate(50, True) }}</span>
+                            <span id="full-desc-{{ issue.id }}" style="display:none;">{{ issue.description }}</span>
+                            {% if issue.description|length > 50 %}
+                                <a href="javascript:void(0);" onclick="toggleDescription({{ issue.id }}, this)">Read more</a>
+                            {% endif %}
+                        </td>
+                        <td>{{ issue.status }}</td>
+                        <td>{{ issue.user.username }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('admin_delete_issue', issue_id=issue.id) }}" onsubmit="return confirm('Are you sure you want to delete this issue?');">
+                                <button type="submit" class="button danger small">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="pagination">
+                {% for page_num in issues.iter_pages() %}
+                    {% if page_num %}
+                        <a href="{{ url_for('admin', page_issues=page_num, tab='issues') }}" class="button {{ 'is-active' if issues.page == page_num else '' }}">{{ page_num }}</a>
+                    {% else %}
+                        <span class="ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+    function toggleDropdown(id, headerElement) {
+        const element = document.getElementById(id);
+        const arrow = headerElement.querySelector('.dropdown-arrow');
+        if (element.style.display === "none") {
+            element.style.display = "block";
+            arrow.classList.add('rotated');
+        } else {
+            element.style.display = "none";
+            arrow.classList.remove('rotated');
+        }
+    }
+
+    function toggleDescription(issueId, link) {
+        var shortDesc = document.getElementById('short-desc-' + issueId);
+        var fullDesc = document.getElementById('full-desc-' + issueId);
+
+        if (shortDesc.style.display === 'none') {
+            shortDesc.style.display = 'inline';
+            fullDesc.style.display = 'none';
+            link.textContent = 'Read more';
+        } else {
+            shortDesc.style.display = 'none';
+            fullDesc.style.display = 'inline';
+            link.textContent = 'Read less';
+        }
+    }
+</script>
+{% endblock %}
+</div>

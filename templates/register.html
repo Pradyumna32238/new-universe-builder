@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Universe Builder{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Create an Account</h2>
+    <p>Join Universe Builder to craft and curate your own worlds.</p>
+  </section>
+
+  <section class="form-section">
+    <form action="{{ url_for('register') }}" method="post" class="form">
+      {% if next %}
+        <input type="hidden" name="next" value="{{ next }}">
+      {% endif %}
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="Choose a unique username" autocomplete="off" required>
+        <div class="username-requirements" aria-live="polite">
+
+
+        </div>
+        <p class="form-hint" id="usernameAvailabilityHint" aria-live="polite"></p>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="Enter your email address" autocomplete="off" required>
+        <p class="form-hint" id="emailAvailabilityHint" aria-live="polite"></p>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Create a secure password" autocomplete="off" required>
+      </div>
+
+      <div class="password-requirements" aria-live="polite">
+        <p class="password-requirements__title">Make sure your password includes:</p>
+        <ul>
+          <li data-rule="length">At least 8 characters</li>
+          <li data-rule="uppercase">At least one uppercase letter</li>
+          <li data-rule="lowercase">At least one lowercase letter</li>
+          <li data-rule="number">At least one number</li>
+          <li data-rule="special">At least one special character</li>
+        </ul>
+      </div>
+
+      <div class="form-group">
+        <label for="password_confirm">Confirm Password</label>
+        <input type="password" id="password_confirm" name="password_confirm" placeholder="Re-enter the password" required>
+        <div class="password-match-hint" id="passwordMatchHint" aria-live="polite"></div>
+      </div>
+
+      <p class="form-hint">Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.</p>
+
+      <button type="submit" class="button primary-pulse">Register</button>
+    </form>
+    <p class="form-footnote">Already have an account? <a href="{{ url_for('login', next=next) if next else url_for('login') }}">Log in instead.</a></p>
+  </section>
+
+  <script src="{{ url_for('static', filename='js/register.js', v='2') }}"></script>
+{% endblock %}

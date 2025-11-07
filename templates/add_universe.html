@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Add Universe - Universe Builder{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h2>Create a New Universe</h2>
+    <p>Design a new fictional universe by providing a captivating title and description.</p>
+  </section>
+
+  {% if current_user.is_authenticated and not current_user.is_admin %}
+    <section class="form-section">
+      <form action="{{ url_for('add_universe') }}" method="post" class="form">
+        <div class="form-group">
+          <label for="title">Universe Title</label>
+          <input type="text" id="title" name="title" placeholder="E.g., The Celestial Frontier" required>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="5" placeholder="Describe the essence of this universe."></textarea>
+        </div>
+
+        <button type="submit" class="button">Create Universe</button>
+      </form>
+    </section>
+  {% elif current_user.is_admin %}
+    <section class="guard-message">
+      <p class="notice">Admins are not allowed to create universes.</p>
+    </section>
+  {% else %}
+    <section class="guard-message">
+      <p class="notice">You need to be logged in to create a universe. <a href="{{ url_for('login', next=request.path) }}">Log in</a> or <a href="{{ url_for('register', next=request.path) }}">register</a> to get started.</p>
+    </section>
+  {% endif %}
+{% endblock %}

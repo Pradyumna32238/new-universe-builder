@@ -1,0 +1,3 @@
+Verify Your Email
+
+Your verification code is: {{ otp }}
