@@ -59,8 +59,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- Gmail API Configuration ---
-# Note: Ensure 'credentials.json' is in the same directory as this app.py file.
-CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), 'credentials.json')
+def get_credentials_from_env():
+    return {
+        "web": {
+            "client_id": os.getenv("client_id"),
+            "project_id": os.getenv("project_id"),
+            "auth_uri": os.getenv("auth_uri"),
+            "token_uri": os.getenv("token_uri"),
+            "auth_provider_x509_cert_url": os.getenv("auth_provider_x509_cert_url"),
+            "client_secret": os.getenv("client_secret"),
+        }
+    }
+
 GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 # -----------------------------
 
@@ -472,8 +482,8 @@ def register_routes(app: Flask) -> None:
 
     @app.route('/authorize')
     def authorize():
-        flow = Flow.from_client_secrets_file(
-            CREDENTIALS_FILE,
+        flow = Flow.from_client_config(
+            get_credentials_from_env(),
             scopes=GMAIL_SCOPES,
             redirect_uri=url_for('oauth2callback', _external=True))
         authorization_url, state = flow.authorization_url(
@@ -490,8 +500,8 @@ def register_routes(app: Flask) -> None:
         if not state:
             return "The authorization state is missing from the session.", 400
 
-        flow = Flow.from_client_secrets_file(
-            CREDENTIALS_FILE,
+        flow = Flow.from_client_config(
+            get_credentials_from_env(),
             scopes=GMAIL_SCOPES,
             state=state,
             redirect_uri=url_for('oauth2callback', _external=True))
