@@ -1,2 +1,0 @@
-Your OTP to change your email address is: {{ otp }}
-This code will expire in 10 minutes.

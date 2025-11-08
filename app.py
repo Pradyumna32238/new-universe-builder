@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 import re
 import base64
 import datetime
@@ -25,11 +26,19 @@ from flask import (
     send_from_directory,
     abort,
     Response,
+    session,
 )
 
-from flask_mail import Mail, Message
 
-mail = Mail()
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from email.mime.text import MIMEText
+
+from flask_caching import Cache
+from flask_migrate import Migrate
 
 from PIL import Image
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -44,9 +53,29 @@ from flask_login import (
 from sqlalchemy import inspect, text, or_
 from urllib.parse import urlparse
 
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_caching import Cache
-from flask_migrate import Migrate
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# --- Gmail API Configuration ---
+# Note: Ensure 'credentials.json' is in the same directory as this app.py file.
+CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), 'credentials.json')
+GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+# -----------------------------
+
+def get_gmail_credentials():
+    creds = Credentials(
+        token=os.getenv('TOKEN'),
+        refresh_token=os.getenv('REFRESH_TOKEN'),
+        token_uri=os.getenv('TOKEN_URI'),
+        client_id=os.getenv('CLIENT_ID'),
+        client_secret=os.getenv('CLIENT_SECRET'),
+        scopes=os.getenv('SCOPES').split(',')
+    )
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+    return creds
 
 cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 from models import db, User, Universe, Character, UniverseCollaboratorRequest, Issue, Notification, NotificationSettings
@@ -110,30 +139,48 @@ def process_image(file_storage) -> tuple[bytes | None, str | None, str | None]:
         return None, None, "Could not process the uploaded image. Please try again with a valid image file."
 
 
+
+
+def send_gmail(to, subject, template, **kwargs):
+    creds = get_gmail_credentials()
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                raise Exception(f"Failed to refresh credentials: {e}")
+        else:
+            raise Exception("Credentials not available or invalid. Please authorize.")
+
+    try:
+        service = build("gmail", "v1", credentials=creds)
+        html_content = render_template(template + '.html', **kwargs)
+        message = MIMEText(html_content, 'html')
+        message["To"] = to
+        message["Subject"] = subject
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        create_message = {"raw": encoded_message}
+        send_message = service.users().messages().send(userId="me", body=create_message).execute()
+        return f"Email sent successfully! Message ID: {send_message['id']}"
+    except HttpError as error:
+        raise Exception(f"An error occurred: {error}")
+    except Exception as e:
+        raise Exception(f"An error occurred: {e}")
+
 def send_password_reset_email(user: User) -> None:
     """Send a password reset email with an OTP to the user."""
     user.generate_otp()
     db.session.commit()
-    msg = Message(
-        "Reset Your Password",
-        sender=current_app.config["MAIL_USERNAME"],
-        recipients=[user.email],
-    )
-    msg.body = f"Your OTP for password reset is: {user.otp_code}. This code will expire in 10 minutes."
-    mail.send(msg)
+    send_gmail(
+         to=user.email,
+         subject="Reset Your Password",
+         template='email/reset_password',
+         user=user,
+         otp=user.otp_code
+     )
 
 
-def send_email_update_otp(user: User) -> None:
-    """Send an OTP to the user's new email address for verification."""
-    user.generate_otp()
-    db.session.commit()
-    msg = Message(
-        "Verify Your New Email Address",
-        sender=current_app.config["MAIL_USERNAME"],
-        recipients=[user.new_email],
-    )
-    msg.body = f"Your OTP for verifying your new email address is: {user.otp_code}. This code will expire in 10 minutes."
-    mail.send(msg)
 
 
 def create_app(config_name: str = None) -> Flask:
@@ -143,38 +190,11 @@ def create_app(config_name: str = None) -> Flask:
 
     app = Flask(__name__)
     app.config.from_object(config_map[config_name])
+    app.config['SECRET_KEY'] = 'a-very-secret-key'
 
-    # Override mail configuration only when explicit environment variables are provided
-    mail_server_env = os.environ.get("MAIL_SERVER")
-    if mail_server_env:
-        app.config["MAIL_SERVER"] = mail_server_env
 
-    mail_port_env = os.environ.get("MAIL_PORT")
-    if mail_port_env:
-        try:
-            app.config["MAIL_PORT"] = int(mail_port_env)
-        except ValueError:
-            app.logger.warning(
-                "MAIL_PORT environment variable is not an integer; using existing configuration."
-            )
 
-    mail_use_tls_env = os.environ.get("MAIL_USE_TLS")
-    if mail_use_tls_env:
-        app.config["MAIL_USE_TLS"] = mail_use_tls_env.lower() in ["true", "on", "1"]
-
-    mail_username_env = os.environ.get("MAIL_USERNAME")
-    if mail_username_env:
-        app.config["MAIL_USERNAME"] = mail_username_env
-
-    mail_password_env = os.environ.get("MAIL_PASSWORD")
-    if mail_password_env:
-        app.config["MAIL_PASSWORD"] = mail_password_env
-
-    mail_default_sender_env = os.environ.get("MAIL_DEFAULT_SENDER")
-    if mail_default_sender_env:
-        app.config["MAIL_DEFAULT_SENDER"] = mail_default_sender_env
-
-    mail.init_app(app)
+    
     db.init_app(app)
     cache.init_app(app)
 
@@ -242,6 +262,34 @@ def register_routes(app: Flask) -> None:
 
         return render_template("login.html")
 
+    @app.route('/send-email-otp', methods=['POST'])
+    @login_required
+    def send_email_otp():
+        new_email = request.json.get('email')
+        if not new_email or not re.match(r'[^@]+@[^@]+\.[^@]+', new_email):
+            return jsonify({'error': 'Invalid email address'}), 400
+
+        if User.query.filter_by(email=new_email).first():
+            return jsonify({'error': 'Email is already registered'}), 400
+
+        try:
+            otp = current_user.generate_otp()
+            db.session.commit()  # Commit the OTP to the database before sending
+            subject = 'Verify Your New Email Address'
+            send_gmail(
+                to=new_email,
+                subject=subject,
+                template='email/verify_new_email',
+                user=current_user,
+                otp=otp
+            )
+            current_user.new_email = new_email
+            db.session.commit()
+            return jsonify({'message': 'OTP sent to your new email address'}), 200
+        except Exception as e:
+            app.logger.error(f'Error sending OTP: {e}')
+            return jsonify({'error': str(e)}), 500
+
     @app.route("/register", methods=["GET", "POST"])
     def register():
         if current_user.is_authenticated:
@@ -278,27 +326,29 @@ def register_routes(app: Flask) -> None:
                 flash("Username must be alphanumeric.", "error")
                 return render_template("register.html")
 
-            if User.query.filter_by(email=email).first():
-                flash("That email is already registered.", "error")
+            if User.query.filter((User.username == username) | (User.email == email)).first():
+                flash("That username or email is already registered.", "error")
                 return render_template("register.html")
 
-            # Store user data in cache
-            otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
+            new_user = User(username=username, email=email)
+            new_user.set_password(password)
+            otp = new_user.generate_otp()
             user_data = {
                 "username": username,
-                "password_hash": generate_password_hash(password),
-                "otp": otp
+                "email": email,
+                "password": new_user.password_hash,
+                "otp": otp,
             }
-            cache.set(email, user_data, timeout=600)  # 10-minute expiry
+            cache.set(email, user_data, timeout=600)  # Store for 10 minutes
 
-            # Send OTP to the user's email
             try:
-                msg = Message("Verify Your Email Address",
-                              sender=current_app.config["MAIL_USERNAME"],
-                              recipients=[email])
-                msg.body = f"Your OTP for verifying your email address is: {otp}. This code will expire in 10 minutes."
-                mail.send(msg)
-
+                send_gmail(
+                    to=email,
+                    subject="Verify Your Email Address",
+                    template='email/verify_email',
+                    username=username,
+                    otp=otp
+                )
                 flash("An OTP has been sent to your email. Please use it to verify your account.", "success")
                 return redirect(url_for("verify_email", email=email))
             except Exception as e:
@@ -307,40 +357,33 @@ def register_routes(app: Flask) -> None:
 
         return render_template("register.html")
 
+
     @app.route("/verify-email", methods=["GET", "POST"])
     def verify_email():
         email = request.args.get("email")
-        if not email:
-            flash("Invalid request.", "error")
+        user_data = cache.get(email)
+
+        if not user_data:
+            flash("Invalid or expired verification link.", "error")
             return redirect(url_for("register"))
 
         if request.method == "POST":
-            otp_code = request.form.get("otp", "").strip()
-            user_data = cache.get(email)
-
-            current_app.logger.info(f"Verifying OTP for email: {email}")
-            current_app.logger.info(f"Submitted OTP: {otp_code}")
-            current_app.logger.info(f"Cached data: {user_data}")
-
-            if user_data and user_data["otp"] == otp_code:
-                # Create new user
+            otp_entered = request.form.get("otp")
+            if otp_entered == user_data["otp"]:
                 new_user = User(
                     username=user_data["username"],
-                    email=email,
-                    password_hash=user_data["password_hash"],
+                    email=user_data["email"],
+                    password_hash=user_data["password"],
                     is_verified=True,
                     email_verified=True
                 )
                 db.session.add(new_user)
                 db.session.commit()
-
-                # Log in the user
-                login_user(new_user)
-                flash("Your email has been verified and your account has been created!", "success")
-                cache.delete(email)  # Clean up cache
-                return redirect(url_for("index"))
+                cache.delete(email)
+                flash("Account created successfully! Please log in.", "success")
+                return redirect(url_for("login"))
             else:
-                flash("Invalid or expired OTP. Please try again.", "error")
+                flash("Invalid OTP. Please try again.", "error")
 
         return render_template("verify_email.html", email=email)
 
@@ -390,6 +433,81 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             return f"❌ SMTP failed: {e}"
 
+
+
+    @app.route('/gmail-api-test')
+    def gmail_api_test():
+        creds = get_gmail_credentials()
+        
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                try:
+                    from google.auth.transport.requests import Request
+                    creds.refresh(Request())
+                except Exception as e:
+                    flash(f'Error refreshing token: {e}. Please re-authorize.')
+                    return redirect(url_for('authorize'))
+            else:
+                return redirect(url_for('authorize'))
+            # The credentials are now managed via environment variables.
+
+        try:
+            service = build('gmail', 'v1', credentials=creds)
+            message = MIMEText("This is a test email sent from the Gmail API within the Flask app.")
+            recipient = os.getenv("MAIL_USERNAME", "fzcznoruz8@ozsaip.com")
+            message['To'] = recipient
+            message['Subject'] = "Gmail API Test from Flask App"
+            
+            encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+            create_message = {'raw': encoded_message}
+            
+            send_message = service.users().messages().send(userId="me", body=create_message).execute()
+            
+            return f"✅ Gmail API test successful! Message ID: {send_message['id']}"
+        except HttpError as error:
+            return f"❌ An error occurred: {error}"
+        except Exception as e:
+            return f"❌ Gmail API test failed: {e}. The token may be invalid. Please try again."
+
+
+    @app.route('/authorize')
+    def authorize():
+        flow = Flow.from_client_secrets_file(
+            CREDENTIALS_FILE,
+            scopes=GMAIL_SCOPES,
+            redirect_uri=url_for('oauth2callback', _external=True))
+        authorization_url, state = flow.authorization_url(
+            access_type='offline',
+            prompt='consent',
+            include_granted_scopes='true')
+        session['state'] = state
+        return redirect(authorization_url)
+
+
+    @app.route('/oauth2callback')
+    def oauth2callback():
+        state = session.get('state')
+        if not state:
+            return "The authorization state is missing from the session.", 400
+
+        flow = Flow.from_client_secrets_file(
+            CREDENTIALS_FILE,
+            scopes=GMAIL_SCOPES,
+            state=state,
+            redirect_uri=url_for('oauth2callback', _external=True))
+        
+        try:
+            flow.fetch_token(authorization_response=request.url)
+        except Exception as e:
+            return f"Failed to fetch token: {e}", 400
+        
+        credentials = flow.credentials
+        # The application now uses environment variables for credentials.
+        # After the initial authorization, you may need to manually update your
+        # environment with the new token details from the 'credentials' object.
+            
+        return redirect(url_for('gmail_api_test'))
+        
     @app.route('/notifications/clear', methods=['POST'])
     @login_required
     def clear_notifications():
@@ -474,11 +592,12 @@ def register_routes(app: Flask) -> None:
 
                         # Send OTP to the new email address
                         try:
-                            msg = Message("Verify Your New Email Address",
-                                          sender=app.config["MAIL_USERNAME"],
-                                          recipients=[new_email])
-                            msg.body = f"Your OTP for verifying your new email address is: {current_user.otp_code}\nThis code will expire in 10 minutes."
-                            mail.send(msg)
+                            send_gmail(
+                             to=new_email,
+                             subject="Confirm Your New Email Address",
+                             template='email/verify_new_email',
+                             otp=current_user.otp_code
+                         )
                             flash("An OTP has been sent to your new email address. Please verify to complete the change.", "info")
                         except Exception as e:
                             current_app.logger.error(f"Failed to send OTP email to {new_email}: {e}")
@@ -609,21 +728,7 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         flash("Your email address has been updated successfully.", "success")
         return redirect(url_for('account_settings'))
-    @app.route("/send-email-otp", methods=["POST"])
-    @login_required
-    def send_email_otp():
-        new_email = request.json.get("email")
-        if not new_email:
-            return jsonify({"error": "Email is required."}), 400
 
-        current_user.new_email = new_email
-
-        try:
-            send_email_update_otp(current_user)
-            return jsonify({"message": "OTP sent to your new email address."})
-        except Exception as e:
-            current_app.logger.error(f"Failed to send OTP email to {new_email}: {e}")
-            return jsonify({"error": "Could not send OTP. Please try again later."}), 500
 
     @app.route("/profile/picture")
     @login_required
@@ -935,6 +1040,7 @@ def register_routes(app: Flask) -> None:
 
 
 
+
     @app.route("/universe/<int:universe_id>/delete", methods=["POST"])
     @login_required
     def delete_universe(universe_id: int):
@@ -1043,7 +1149,7 @@ def register_routes(app: Flask) -> None:
                 return redirect(url_for("forgot_password", email=email))
 
             import datetime
-            if user.otp_code != otp_code or datetime.datetime.utcnow() > user.otp_expiry:
+            if not user.verify_otp(otp_code):
                 flash("Invalid or expired OTP.", "error")
                 return redirect(url_for("forgot_password", email=email))
 

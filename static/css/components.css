@@ -612,11 +612,9 @@ input:checked + .slider:before {
   right: 0;
   background: #eb5757;
   color: white;
-  border-radius: 0.5rem;
-  padding: 0.1rem 0.3rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  min-width: 1.2rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
   text-align: center;
 }
 

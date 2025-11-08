@@ -40,8 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         item.innerHTML = `<p class="notification-message">${notif.message}</p>`;
                         notificationList.appendChild(item);
                     });
+                    updateBadge(recentNotifications.length);
                 }
-                updateBadge(notifications.length);
             }
         } catch (error) {
             console.error('Error fetching notifications:', error);
@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateBadge = (count) => {
         if (count > 0) {
-            notificationBadge.textContent = count;
             notificationBadge.style.display = 'block';
         } else if (count === 0) {
             notificationBadge.style.display = 'none';

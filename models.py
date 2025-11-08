@@ -34,6 +34,7 @@ class User(UserMixin, db.Model):
         import datetime
         self.otp_code = "".join([str(random.randint(0, 9)) for _ in range(6)])
         self.otp_expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+        return self.otp_code
 
     def verify_otp(self, otp_code):
         return self.otp_code == otp_code and self.otp_expiry > datetime.utcnow()
