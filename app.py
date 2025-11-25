@@ -1,7 +1,7 @@
 # Force reload
 """Flask application entry point for the Universe Builder app."""
 from __future__ import annotations
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 
 load_dotenv()
 
@@ -510,8 +510,13 @@ def register_routes(app: Flask) -> None:
             flow.fetch_token(authorization_response=request.url)
         except Exception as e:
             return f"Failed to fetch token: {e}", 400
-        
+
+        dotenv_path = "/.env"
         credentials = flow.credentials
+        set_key(dotenv_path, "TOKEN", credentials.token)
+        if credentials.refresh_token:
+            set_key(dotenv_path, "REFRESH_TOKEN", credentials.refresh_token)
+        set_key(dotenv_path, "SCOPES", " ".join(credentials.scopes))
         # The application now uses environment variables for credentials.
         # After the initial authorization, you may need to manually update your
         # environment with the new token details from the 'credentials' object.
