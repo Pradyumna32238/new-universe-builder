@@ -1,0 +1,13 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # run every 10 minutes
+  workflow_dispatch:          # allow manual trigger from GitHub Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl Render App
+        run: curl -s https://new-universe-builder.onrender.com/ > /dev/null
