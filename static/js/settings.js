@@ -172,6 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
           return response.json();
         })
         .then(data => {
+          console.log('Response from /send-email-otp:', data);
           if (data.message) {
             document.getElementById('otp-group').style.display = 'block';
             document.getElementById('update-profile-button').style.display = 'none';
@@ -282,6 +283,8 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
           if (data.status === 'success') {
+            sessionStorage.setItem('notificationMessage', data.message);
+            sessionStorage.setItem('notificationType', 'success');
             window.location.reload();
           } else {
             showNotification(data.message, data.status);

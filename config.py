@@ -14,11 +14,14 @@ class Config:
 
     # Database configuration
     database_type = os.environ.get("DATABASE", "sl")  # Default to SQLite
+    DATABASE = database_type
 
     if database_type == "pg":
         SQLALCHEMY_DATABASE_URI = os.environ.get("POSTGRES_URL")
     elif database_type == "ms":
         SQLALCHEMY_DATABASE_URI = os.environ.get("MYSQL_URL")
+    elif database_type == "sb":
+        SQLALCHEMY_DATABASE_URI = None
     else:
         SQLALCHEMY_DATABASE_URI = os.environ.get("SQLITE_URL", f"sqlite:///{BASE_DIR / 'instance' / 'app.db'}")
 

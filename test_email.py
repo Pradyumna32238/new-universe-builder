@@ -55,7 +55,7 @@ def main():
     service = build('gmail', 'v1', credentials=creds)
 
     sender = "pradyumna32238@gmail.com"   # replace with your Gmail
-    to = "fzcznoruz8@ozsaip.com"     # replace with test recipient
+    to = "6nklal3uny@xkxkud.com"     # replace with test recipient
     subject = "Test Email from Gmail API"
     body = "Hello! This is a test email sent using Gmail API and token.json."
 

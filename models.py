@@ -1,7 +1,8 @@
+import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 import base64
 from flask import url_for
@@ -20,6 +21,7 @@ class User(UserMixin, db.Model):
     new_email = db.Column(db.String(150))
     profile_picture_data = db.Column(db.LargeBinary)
     profile_picture_mimetype = db.Column(db.String(50))
+    profile_image_url = db.Column(db.String(255))
     notifications = db.relationship('Notification', backref='user', lazy='dynamic', cascade="all, delete-orphan")
 
 
@@ -37,7 +39,25 @@ class User(UserMixin, db.Model):
         return self.otp_code
 
     def verify_otp(self, otp_code):
-        return self.otp_code == otp_code and self.otp_expiry > datetime.utcnow()
+        from flask import current_app
+        
+        expiry_time = self.otp_expiry
+        
+        if current_app.config.get("DATABASE") == "sb" and isinstance(expiry_time, str):
+            try:
+                expiry_time = datetime.fromisoformat(expiry_time)
+            except ValueError:
+                return False
+
+        if not isinstance(expiry_time, datetime):
+            return False
+
+        now = datetime.now(timezone.utc)
+
+        if expiry_time.tzinfo is None:
+            expiry_time = expiry_time.replace(tzinfo=timezone.utc)
+
+        return self.otp_code == otp_code and expiry_time > now
 
     def set_random_profile_image(self):
         from PIL import Image, ImageDraw, ImageFont
@@ -67,8 +87,32 @@ class User(UserMixin, db.Model):
         self.profile_picture_mimetype = "image/webp"
 
     def set_profile_image(self, image_data, mimetype):
-        self.profile_picture_data = image_data
-        self.profile_picture_mimetype = mimetype
+        from flask import current_app
+        if current_app.config.get("DATABASE") == "sb":
+            from supabase_client import get_storage_client
+            storage_client = get_storage_client()
+            bucket_name = "profile-pictures"
+            if image_data:
+                try:
+                    path = f"{self.username}_{self.id}.webp"
+                    storage_client.put_object(Body=image_data, Bucket=bucket_name, Key=path, ContentType=mimetype)
+                    
+                    # Construct the public URL manually
+                    self.profile_image_url = f'{os.environ.get("SUPABASE_URL")}/storage/v1/object/public/{bucket_name}/{path}'
+
+                except Exception as e:
+                    print(f"Error uploading to Supabase: {e}")
+            else:
+                if self.profile_image_url:
+                    try:
+                        path = self.profile_image_url.split(f"{bucket_name}/")[-1]
+                        storage_client.delete_object(Bucket=bucket_name, Key=path)
+                    except Exception as e:
+                        print(f"Error deleting from Supabase: {e}")
+                self.profile_image_url = None
+        else:
+            self.profile_picture_data = image_data
+            self.profile_picture_mimetype = mimetype
 
     @staticmethod
     def validate_password_rules(password):
@@ -129,6 +173,7 @@ class Issue(db.Model):
     description = db.Column(db.Text, nullable=False)
     issue_type = db.Column(db.String(50), nullable=False, default='issue')  # 'issue' or 'suggestion'
     status = db.Column(db.String(50), default='Open')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('issues', cascade="all, delete-orphan"))
 

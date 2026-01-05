@@ -45,8 +45,13 @@ label {
 
 input[type="text"],
 input[type="email"],
-input[type="password"],
-textarea {
+input[type="password"] {
+    width: auto;
+    min-width: 200px;
+}
+
+textarea,
+.form-control {
   padding: 0.75rem;
   border-radius: var(--border-radius);
   border: 1px solid rgba(35, 40, 90, 0.15);
@@ -58,6 +63,12 @@ textarea {
 textarea {
   resize: vertical;
 }
+
+#issue-type-select {
+    width: 15%;
+}
+
+
 
 .container {
   width: min(960px, 90%);

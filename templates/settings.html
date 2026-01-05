@@ -156,7 +156,7 @@
         <input type="hidden" name="update_target" value="issue">
         <div class="form-group">
           <label for="issue_type">Type</label>
-          <select id="issue_type" name="issue_type" required>
+          <select id="issue-type-select" name="issue_type" class="form-control" required>
             <option value="issue">Issue</option>
             <option value="suggestion">Suggestion</option>
           </select>
@@ -169,7 +169,7 @@
           <label for="issue_description">Description</label>
           <textarea id="issue_description" name="issue_description" rows="5" required></textarea>
         </div>
-        <button type="submit" class="button">Submit Issue</button>
+        <button type="submit" class="button">Submit</button>
       </form>
     </section>
     {% endif %}
