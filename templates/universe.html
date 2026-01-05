@@ -13,10 +13,12 @@
 
   <div class="settings-tabs universe-tabs" role="tablist" aria-label="Universe categories">
     <button class="settings-tab is-active" onclick="showTab('characters')" id="tab-characters" aria-selected="true" aria-controls="universe-characters">Characters</button>
+    {% if not current_user.is_admin %}
     <button class="settings-tab" onclick="showTab('add-character')" id="tab-add-character" aria-selected="false" aria-controls="universe-add-character">Add/Request Character</button>
+    {% endif %}
     {% if current_user.is_authenticated and universe.owner_id == current_user.id %}
     <button class="settings-tab" onclick="showTab('collab-requests')" id="tab-collab-requests" aria-selected="false" aria-controls="universe-collab-requests">Pending Collaboration Requests</button>
-    {% elif current_user.is_authenticated %}
+    {% elif current_user.is_authenticated and not current_user.is_admin %}
     <button class="settings-tab" onclick="showTab('your-requests')" id="tab-your-requests" aria-selected="false" aria-controls="universe-your-requests">Your Requests</button>
     {% endif %}
   </div>
