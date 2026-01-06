@@ -356,6 +356,10 @@ def add_user(user):
 def update_user(user_id, data):
     """Update a user's data."""
     try:
+        if 'otp_expiry' in data and data['otp_expiry'] is not None:
+            # Ensure otp_expiry is a timezone-aware ISO 8601 string
+            data['otp_expiry'] = data['otp_expiry'].isoformat()
+            
         response = supabase.table("user").update(data).eq("id", user_id).execute()
         return response
     except Exception as e:
@@ -369,5 +373,5 @@ def create_bucket_if_not_exists(bucket_name):
         supabase.storage.create_bucket(bucket_name)
 
 def delete_user(user_id):
-    response = supabase.table('users').delete().eq('id', user_id).execute()
+    response = supabase.table('user').delete().eq('id', user_id).execute()
     return response

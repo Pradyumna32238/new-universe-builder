@@ -206,14 +206,18 @@ def send_gmail(to, subject, template, **kwargs):
 def send_password_reset_email(user: User) -> None:
     """Send a password reset email with an OTP to the user."""
     user.generate_otp()
-    db.session.commit()
+    if app.config.get("DATABASE") == "sb":
+        from sb_functions import update_user
+        update_user(user.id, {'otp_code': user.otp_code, 'otp_expiry': user.otp_expiry})
+    else:
+        db.session.commit()
     send_gmail(
-         to=user.email,
-         subject="Reset Your Password",
-         template='email/reset_password',
-         user=user,
-         otp=user.otp_code
-     )
+        to=user.email,
+        subject="Reset Your Password",
+        template='email/reset_password',
+        user=user,
+        otp=user.otp_code
+    )
 
 
 
@@ -1599,6 +1603,10 @@ def register_routes(app: Flask) -> None:
             otp_code = request.form.get("otp", "").strip()
             new_password = request.form.get("new_password", "")
             new_password_confirm = request.form.get("new_password_confirm", "")
+
+            if not new_password:
+                flash("Password cannot be empty.", "error")
+                return redirect(url_for("forgot_password", email=email))
 
             if app.config.get("DATABASE") == "sb":
                 from sb_functions import get_user_by_email
