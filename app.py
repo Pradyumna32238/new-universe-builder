@@ -299,6 +299,10 @@ def create_app(config_name='default'):
 def register_routes(app: Flask) -> None:
     """Register route handlers on the provided Flask app instance."""
 
+    @app.route("/healthz")
+    def health():
+        return "ok", 200
+
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if current_user.is_authenticated:
