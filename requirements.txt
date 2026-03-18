@@ -17,3 +17,4 @@ supabase
 gotrue
 postgrest
 websockets
+gevent
